@@ -1,17 +1,19 @@
 require 'catpix'
 
 class Player
-    attr_accessor :player_health, :player_attack, :player_defense, :player_inventory, :baron_health
+    attr_accessor :player_health, :player_attack, :player_defense, :player_inventory, :baron_health, :player_name, :player_pokemon
     
-    def initialize
+    def initialize(player_name, pokemon)
         @player_health = 20
         @player_attack = 10
         @player_defense = 10
         @baron_health = 30
+        @player_name = player_name
+        @player_pokemon = pokemon
 
         @player_inventory = []
-
-        puts "\nPlayer's health is #{player_health}. Player's attack is #{player_attack} and player's defense is #{player_defense}."
+        
+        puts "\n" + player_name + "'s health is #{player_health}. " + player_name + "'s attack is #{player_attack} and their defense is #{player_defense}."
 
         set_baron_health
     end
@@ -20,42 +22,55 @@ class Player
         puts @player_inventory
     end
 
-    def take(item)
-        @player_inventory.push(item)
+    def take(item, stat='')
+        unless @player_inventory.include? item
+            @player_inventory.push(item)
+            if stat == 'player_attack'
+                @player_attack += 5
+            elsif stat == 'player_defense'
+                @player_defense += 5
+            end
+        end
         puts "The following items are in your inventory: #{@player_inventory}."
     end
 
-    def remove(item)
-        @player_inventory.delete(item)
+    def remove(item, stat='')
+        if @player_inventory.include? item
+            @player_inventory.delete(item)
+            if stat == 'player_attack'
+                @player_attack -= 5
+            elsif stat == 'player_defense'
+                @player_defense -= 5
+            end
+        end
         puts "The following items are in your inventory: #{@player_inventory}."
     end
 
     def set_baron_health
         if player_attack > 19 && player_defense >14
-                @baron_health = 20
+            @baron_health = 20
         elsif player_attack > 19 || player_defense > 14
             @baron_health = 25
         else
             @baron_health = 30
         end
-        #puts "\nThe baron's health is #{baron_health}."
     end
 
     def attack_baron
-    # Generate random number between 0 and 6
-    # and round down to either 0 or 5
+        # Generate random number between 0 and 6
+        # and round down to either 0 or 5
         # store resulting integer in variable roll
         player_roll = rand(6).floor
 
         player_damage = player_roll * 3
-        puts "\nYou attack the Baron for #{player_damage} damage."
+        puts "\nYou attack the BARON for #{player_damage} damage."
 
         @baron_health -= player_damage
 
         if @baron_health <= 0
-        abort("\nYou defeated the Baron! Run the file to play again.")
+        abort("\nYou defeated the BARON! Run the file to play again.")
         else
-        puts "Baron's health: #{@baron_health}hp"
+        puts "BARON's health: #{@baron_health}hp"
         defend_baron
         end
     end
@@ -67,12 +82,12 @@ class Player
         baron_roll = rand(6).floor
 
         baron_damage = baron_roll * 3
-        puts "\nBaron attacks you for #{baron_damage} damage."
+        puts "\nBARON attacks you for #{baron_damage} damage."
 
         @player_health -= baron_damage
 
         if @player_health <= 0
-            abort("The Baron has killed you. Run the file again to enact vengeance.")
+            abort("THE BARON has killed you. Run the file again to enact vengeance.")
         else
             puts "Your health: #{@player_health}hp"
             puts "\nContinue attacking? Y/N"
@@ -80,7 +95,8 @@ class Player
             if choice == 'Y'
                 attack_baron
             else
-                abort("Well if you won't attack him then he's bound to murdalize you. Game Over.")
+                puts "Well if you won't attack him then he's bound to murdalize you. Game Over."
+                you_lose
             end
         end
     end
@@ -90,34 +106,41 @@ class Game
     attr_accessor :player_health, :player_attack, :player_defense
     
     def initialize
-        start
+        puts "Oh, hey. What's your name again? > "
+        player_name = $stdin.gets.chomp
+        puts "And are you a boy or a girl? > "
+        gender = $stdin.gets.chomp
+        puts "Lastly, who did you pick as your starter Pokemon in Pokemon Red/Blue? > "
+        pokemon = $stdin.gets.chomp
+        @dead_trogdor = false
+        start(player_name, pokemon)
     end
 
     def prompt
-        print "\nEnter command > "
+        puts "\nEnter command > "
     end
 
-    def start
-        @player = Player.new
+    def start(player_name, pokemon)
+        @player = Player.new(player_name, pokemon)
         room_1(true)
-    end
-
-    def take(item)
-        @player.take(item)
-    end
-
-    def remove(item)
-        @player.remove(item)
     end
 
     def set_baron_health
         @player.set_baron_health
     end
 
+    def is_trogdor_dead
+        if @dead_trogdor
+            return "DEAD "
+        else 
+            return ""
+        end
+    end
+
     def load_pic(url)
         Catpix::print_image url,
             :limit_x => 0.5,
-            :limit_y => 0,
+            :limit_y => 0.5,
             :center_x => true,
             :center_y => true,
             :resolution => "high"
@@ -127,7 +150,7 @@ class Game
         if first_entry == true
             load_pic('img/dungeonintro.png')
         end
-        puts "\nYou awake to find yourself in a dark, musty room. In this room are an empty FLAGON, a suspicious looking HAYSTACK, and a sharp ROCK. Visible exits are NORTH, WEST, and TROGDOR.\n"
+        puts "\nYou awake to find yourself in a dark, musty room. In this room are an empty FLAGON, a suspicious looking HAYSTACK, and a sharp ROCK. Visible exits are NORTH, WEST, and " + is_trogdor_dead + "TROGDOR.\n"
         prompt
         answer = $stdin.gets.chomp.upcase
         case answer
@@ -136,19 +159,31 @@ class Game
         when 'WEST'
             room_3(true)
         when 'TROGDOR'
+            load_pic("img/trogdor.jpg")
+            if @player.player_pokemon.downcase == 'charmander'
+                puts "What?!? CHARMANDER is evolving! CHARMANDER evolved into CHARIZARD! CHARIZARD and TROGDOR duke it out and it's pretty close, but CHARIZARD emerges as the victor, saving you from certain death. Nice.\n"
+                @dead_trogdor = true
+                room_1(false)
+            elsif @player.player_pokemon.downcase == 'squirtle'
+                puts "SQUIRTLE used Bubble! It's inexplicably super effective! TROGDOR has fainted!"
+                @dead_trogdor = true
+                room_1(false)
+            elsif @player.player_pokemon.downcase == 'bulbasaur'
+                puts "Little BULBASAUR tried its hardest, but it got burned to a crisp by The Burninator. You monster. How could you do this to poor, sweet BULBASAUR?"
+                you_lose
+            end
             puts "\nSeriously? You had to know you'd lose a fight with The Burninator. You're dead.\n"
             you_lose
         when 'FLAGON'
             puts "\nIt seems like there yet be some moonshine left in this here flagon!\n"
-                @player.player_attack += 5
+                @player.take("flagon", "player_attack")
                 puts "\nYour attack power has increased by 5, because you're an aggressive drunk. Your attack is now #{@player.player_attack}.\n"
-                take("flagon")
                 room_1(false)
         when 'HAYSTACK'
             puts "\n'Suspicious: def. An object which, in the context of this game, will almost certainly kill you.' You have been murdalized. By a haystack.\n"
             you_lose
         when 'ROCK'
-            take("rock")
+            @player.take("rock")
             puts "\nYou have put the rock into your inventory. Can't imagine why, but you'll do what you feel is best, I suppose.\n"
             room_1(false)
         when 'QUIT'
@@ -174,18 +209,15 @@ class Game
         when 'SOUTHEAST'
             room_3(true)
             when 'KNIFE'
-                @player.take("knife")
-                @player.player_attack += 5
+                @player.take("knife", "player_attack")
                 puts "\nGood thinking grabbing the stabby looking thing. Your attack power has increased by 5. Your attack is now #{@player.player_attack}.\n"
                 room_2(false)
             when 'CHICKEN'
-                take("chicken")
-                @player.player_defense += 5
+                @player.take("chicken", "player_defense")
                 puts "\nYour defense power has increased because... chicken. Your defense is now #{@player.player_defense}.\n"
                 room_2(false)
             when 'BOURBON'
-                @player.take("bourbon")
-                @player.player_attack += 5
+                @player.take("bourbon", "player_attack")
                 puts "\nDrunk Brayan left this bourbon here! Ye drinketh it. YE ARE EVEN MORE AGGRO. Your attack is now #{@player.player_attack}.\n"
                 room_2(false)
             when 'QUIT'
@@ -209,13 +241,12 @@ class Game
         when 'EAST'
             room_1(true)
         when 'BANDAGES'
-            take("bandages")
-            @player.player_defense += 5
+            @player.take("bandages", "player_defense")
             puts "\nYour ability to not bleed to death has increased. Defense +5. Your defense is now #{@player.player_defense}.\n"
             room_3(false)
         when 'ASPIRIN'
+            @player.take("aspirin")
             puts "\nDrunk Brayan must have left these here. You take them, because f*** Drunk Brayan.\n"
-            take("aspirin")
             room_3(false)
         when 'TOASTER'
             puts "\nYou should have checked whether that toaster was plugged in. Spoiler Alert: it was. Ye are verily dead.\n"
@@ -242,14 +273,17 @@ class Game
         when 'SOUTH'
             room_2(true)
         when 'DRUNK BRAYAN'
+            load_pic("img/brayan.jpg")
             puts "\nYou're confronted by a surly, extremely intoxicated DRUNK BRAYAN. He asks you for his ASPIRIN or, barring that, the password. You've... got the password... right?\n"
             password = gets.chomp
                 if password == "trapeloadmin"
                     you_win
+                elsif password.downcase == "aspirin" and not @player.player_inventory.include? "aspirin"
+                    puts "What are you, drunk? You don't have any aspirin. DRUNK BRAYAN flies into an incoherent rage and kills you."
+                    you_lose
                 elsif password.downcase == "aspirin"
-                    @player.player_defense -= 5
+                    @player.remove("aspirin", "player_defense")
                     puts "Really dumb move. Now you're vulnerable to alcohol. Defense -5. Your defense is now #{@player.player_defense}."
-                    remove("aspirin")
                     room_4(false)
                 else
                     puts "\nThat's not the password! Uh-oh... DRUNK BRAYAN looks angry. He killed you. Better luck next time.\n"
@@ -270,7 +304,7 @@ class Game
     def trigger_boss_battle
         load_pic("img/baron.jpg")
 
-        puts "You've encountered the fearson Baron Von Schneckeldorfing. You must roll the dice
+        puts "You've encountered the fearsome BARON VON JOEL FROM IDG :^). You must roll the dice
         \nto determine your fate. You lose if your health reaches 0.
         \nYour health is #{@player.player_health}.
         \nYour attack is #{@player.player_attack}. Your defense is #{@player.player_defense}."
@@ -279,11 +313,18 @@ class Game
     end
 
     def you_win
-        abort("You've escaped the dungeon in (mostly) one piece! Congrats! Run the file to play again.")
+        abort("Congrats" + @player.player_name + "You've escaped the dungeon in (mostly) one piece! Congrats! Run the file to play again.")
     end
 
     def you_lose
-        abort("Game Over.")
+        puts "Game Over. Do you want to try again? Y/N > "
+        answer = $stdin.gets.chomp
+        case answer
+        when 'y'
+            start(@player.player_name, @player.player_pokemon)
+        when 'n'
+            quit
+        end
     end
 
     def error_message
